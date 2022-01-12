@@ -1,7 +1,7 @@
-use notify::{RecommendedWatcher, RecursiveMode, Watcher, event::EventKind, event::ModifyKind, event::DataChange};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use regex::Regex;
 use std::time::{SystemTime};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::process::Command;
 
 fn watch(pattern: String, command: String) -> notify::Result<()> {
@@ -9,11 +9,11 @@ fn watch(pattern: String, command: String) -> notify::Result<()> {
 
     // Automatically select the best implementation for your platform.
     // You can also access each implementation directly e.g. INotifyWatcher.
-    let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res| tx.send(res).unwrap())?;
+    let mut watcher: RecommendedWatcher = Watcher::new(move |res| tx.send(res).unwrap())?;
 
     // Add a path to be watched. All files and directories at that path and
     // below will be monitored for changes.
-    watcher.watch(".", RecursiveMode::Recursive)?;
+    watcher.watch(Path::new("."), RecursiveMode::Recursive)?;
 
     let mut last_time = SystemTime::now();
     let mut last_files: Vec<PathBuf> = Vec::new();
@@ -36,8 +36,7 @@ fn watch(pattern: String, command: String) -> notify::Result<()> {
 fn match_event(event: &notify::Event, pattern: &String) -> bool {
     let re = Regex::new(pattern).unwrap();
     for path in &event.paths {
-        let event_kind = EventKind::Modify(ModifyKind::Data(DataChange::Any));
-        if event.kind == event_kind && re.is_match(path.to_str().unwrap()) {
+        if event.kind.is_modify() && re.is_match(path.to_str().unwrap()) {
             return true
         }
     }
